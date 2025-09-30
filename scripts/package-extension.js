@@ -18,9 +18,9 @@ if (!fs.existsSync(extensionDir)) {
   console.log('🧹 Cleaned and recreated extension directory');
 }
 
-// Copy built files
+// Copy built files with Chrome-compatible naming
 if (fs.existsSync(sourceDir)) {
-  copyDir(sourceDir, extensionDir);
+  copyDirWithRename(sourceDir, extensionDir);
   console.log('📦 Copied built files from /out');
 } else {
   console.error('❌ Build output directory not found. Make sure to run build:extension first.');
@@ -43,6 +43,9 @@ filesToCopy.forEach(file => {
   }
 });
 
+// Fix HTML files to use renamed paths
+fixHtmlFiles(extensionDir);
+
 console.log(`\n🎉 Extension packaged successfully!`);
 console.log(`📂 Location: ./extension directory`);
 console.log(`📋 Files copied: ${copiedFiles}/${filesToCopy.length} extension files`);
@@ -52,21 +55,50 @@ console.log(`   2. Enable "Developer mode" (top right toggle)`);
 console.log(`   3. Click "Load unpacked"`);
 console.log(`   4. Select the ./extension folder`);
 
-function copyDir(src, dest) {
+function copyDirWithRename(src, dest) {
   if (!fs.existsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
   }
-  
+
   const entries = fs.readdirSync(src, { withFileTypes: true });
-  
+
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    
+    let destName = entry.name;
+
+    // Rename folders starting with underscore
+    if (entry.name.startsWith('_')) {
+      destName = entry.name.replace(/^_/, 'next-');
+      console.log(`🔄 Renaming ${entry.name} to ${destName}`);
+    }
+
+    const destPath = path.join(dest, destName);
+
     if (entry.isDirectory()) {
-      copyDir(srcPath, destPath);
+      copyDirWithRename(srcPath, destPath);
     } else {
       fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+function fixHtmlFiles(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      fixHtmlFiles(fullPath);
+    } else if (entry.name.endsWith('.html')) {
+      let content = fs.readFileSync(fullPath, 'utf8');
+
+      // Replace _next references with next-
+      content = content.replace(/\/_next\//g, '/next-next/');
+      content = content.replace(/"_next\//g, '"next-next/');
+
+      fs.writeFileSync(fullPath, content);
+      console.log(`🔧 Fixed paths in ${entry.name}`);
     }
   }
 }
