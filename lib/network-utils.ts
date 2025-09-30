@@ -51,13 +51,27 @@ export class NetworkUtils {
       return false
     }
 
+    // Check if running as extension
+    const isExtension = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id
+
     try {
-      const response = await fetch('/api/health', {
-        method: 'HEAD',
-        cache: 'no-cache',
-        signal: AbortSignal.timeout(5000)
-      })
-      return response.ok
+      if (isExtension) {
+        // In extension, try to fetch a reliable external endpoint
+        const response = await fetch('https://www.google.com/favicon.ico', {
+          method: 'HEAD',
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(5000)
+        })
+        return response.ok
+      } else {
+        // In webapp, use internal health endpoint
+        const response = await fetch('/api/health', {
+          method: 'HEAD',
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(5000)
+        })
+        return response.ok
+      }
     } catch {
       return false
     }

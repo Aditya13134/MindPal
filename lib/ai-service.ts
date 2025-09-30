@@ -48,6 +48,13 @@ export interface RewritingRequest {
 class AIService {
   private async isOnline(): Promise<boolean> {
     if (typeof window === 'undefined') return true // Server-side, assume online
+    
+    // Check if running as extension
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+      // In extension, check navigator.onLine first
+      if (!navigator.onLine) return false
+    }
+    
     return await networkUtils.checkConnectivity()
   }
 
